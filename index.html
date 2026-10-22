@@ -35,15 +35,13 @@
     }
     .result-item:hover { background: #FFF; border-color: var(--celsa-red); box-shadow: 0 4px 12px rgba(227,6,19,0.08); transform: translateY(-2px); }
     .result-info { flex: 1; padding-right: 15px; }
-    .result-prod { font-weight: 700; font-size: 15px; margin-bottom: 4px; line-height: 1.3; }
-    .result-origen { font-size: 11px; color: #888; display: flex; align-items: center; gap: 5px; }
+    .result-prod { font-weight: 700; font-size: 15px; line-height: 1.3; }
     .result-code {
       background: var(--celsa-red); color: #FFF; font-weight: 900;
       padding: 8px 14px; border-radius: 8px; font-size: 15px; letter-spacing: 1px;
       box-shadow: 0 2px 6px rgba(227,6,19,0.2); white-space: nowrap;
     }
     
-    /* 🟢 Resaltado de palabras buscadas */
     mark { background-color: #FFF0F0; color: var(--celsa-red); font-weight: 900; border-radius: 3px; padding: 0 2px; }
     
     .empty { text-align: center; padding: 30px; color: #999; font-size: 14px; }
@@ -66,7 +64,7 @@
   <div class="search-section">
     <div class="search-box">
       <i class="fas fa-search"></i>
-      <input type="text" id="searchInput" placeholder="Escriba palabra clave (ej: CUF 104x)..." autocomplete="off">
+      <input type="text" id="searchInput" placeholder="Escriba palabra clave (ej: CUF 104x 6 mm)..." autocomplete="off">
     </div>
 
     <div class="loading" id="loading">
@@ -83,7 +81,6 @@
 </div>
 
 <script>
-  // ⚠️ PEGA AQUÍ LA URL DE TU IMPLEMENTACIÓN WEB
   const API_URL = 'https://script.google.com/macros/s/AKfycbw7lg3uNWXtzi9RFP8SXB_VQBv0Fvm0SsePf20Ooc9ypkBxEfTXzwe5tfc4pnJ6x92x/exec';
   
   const searchInput = document.getElementById('searchInput');
@@ -91,14 +88,25 @@
   const loading = document.getElementById('loading');
   let timeoutId = null;
 
-  // Función para resaltar las palabras buscadas en el resultado
-  function resaltarTexto(texto, palabras) {
+  function resaltarTexto(texto, terminoOriginal) {
+    let terminoNormalizado = terminoOriginal.replace(/(\d+(?:[xX]\d+(?:\.\d+)?)?)\s+(mm|awg|kcm)\b/gi, '$1$2');
+    let palabras = terminoNormalizado.split(/\s+/).filter(p => p.length > 0);
+    
     let resultado = texto;
+    
     palabras.forEach(p => {
-      // Expresión regular para buscar la palabra sin importar mayúsculas/minúsculas
-      const regex = new RegExp(`(${p})`, 'gi');
+      let regexStr = p;
+      if (/^\d+.*(mm|awg|kcm)$/i.test(p)) {
+        const match = p.match(/^(\d+.*?)(mm|awg|kcm)$/i);
+        if (match) {
+          regexStr = `(${match[1]}\\s*${match[2]})`;
+        }
+      }
+      
+      const regex = new RegExp(`(${regexStr})`, 'gi');
       resultado = resultado.replace(regex, '<mark>$1</mark>');
     });
+    
     return resultado;
   }
 
@@ -136,17 +144,13 @@
         return;
       }
 
-      const palabrasBusqueda = termino.toLowerCase().split(/\s+/).filter(p => p.length > 0);
-
       resultsList.innerHTML = res.data.map(item => {
-        // Resaltamos las palabras que el usuario escribió
-        const prodResaltado = resaltarTexto(item.producto, palabrasBusqueda);
+        const prodResaltado = resaltarTexto(item.producto, termino);
         
         return `
           <div class="result-item" onclick="copiarCodigo('${item.codigo}')">
             <div class="result-info">
               <div class="result-prod">${prodResaltado}</div>
-              <div class="result-origen"><i class="fas fa-layer-group"></i> Hoja: ${item.origen}</div>
             </div>
             <div class="result-code" title="Clic para copiar">${item.codigo}</div>
           </div>
